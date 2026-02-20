@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Muddy River Festival — Wildlife Spotter</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ── Brand palette ──────────────────────────────────────────────
+     Primary dark:   #1a3318  (deep forest green)
+     Accent yellow:  #ffd331  (MRF logo gold)
+     Warm orange:    #e8742a  (festival orange)
+     Cream:          #f5f0e0  (high-contrast body text on dark)
+     Mid green:      #2e5c22  (panel borders / accents)
+  ────────────────────────────────────────────────────────────────*/
+
+  html, body {
+    height: 100%;
+    height: 100dvh;
+  }
+
+  body {
+    /* Deep forest green — matches MRF dark brand */
+    background: #1a3318;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #f5f0e0;
+    overflow: hidden;
+    padding: 6px 6px 4px;
+    gap: 4px;
+  }
+
+  /* ── Branding ───────────────────────────────────────────────── */
+  #branding {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  #logo-wrap {
+    /* Slightly lighter green panel so logo sits in its natural home */
+    background: #0f2210;
+    border-radius: 8px;
+    padding: 6px 20px 5px;
+    box-shadow: 0 2px 14px #0008;
+    border: 1px solid #2e5c22;
+    max-width: 100%;
+  }
+
+  #mrf-logo {
+    width: 260px;
+    max-width: calc(100vw - 60px);
+    height: auto;
+    display: block;
+  }
+
+  #subtitle {
+    font-size: 0.78rem;
+    /* Cream — high contrast on dark green */
+    color: #f5f0e0;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
+    padding: 0 8px;
+    text-shadow: 0 1px 3px #000a;
+  }
+
+  #website-link {
+    color: #ffd331;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  #website-link:hover { text-decoration: underline; color: #ffe86a; }
+
+  /* ── HUD ────────────────────────────────────────────────────── */
+  #hud {
+    display: flex;
+    gap: 0;
+    font-size: 0.88rem;
+    align-items: stretch;
+    flex-wrap: wrap;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 100%;
+    background: #0f2210;
+    border: 1px solid #2e5c22;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  #hud > div {
+    padding: 4px 12px;
+    border-right: 1px solid #2e5c22;
+    color: #f5f0e0;       /* cream — readable on dark green */
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #hud > div:last-child { border-right: none; }
+
+  /* The value inside each HUD cell */
+  #hud span {
+    font-weight: 800;
+    color: #ffd331;        /* brand yellow */
+  }
+
+  /* Top score gets orange accent to stand out */
+  #hud .topscore-cell span { color: #e8742a; }
+
+  /* ── Canvas wrapper ─────────────────────────────────────────── */
+  #game-wrapper {
+    position: relative;
+    border: 3px solid #2e5c22;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 32px #0008;
+    width: min(100%, calc((100dvh - 130px) * 800 / 450));
+    aspect-ratio: 800 / 450;
+    flex-shrink: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Scoreboard ─────────────────────────────────────────────── */
+  #scoreboard {
+    background: #0f2210;
+    border-radius: 6px;
+    padding: 4px 10px;
+    display: flex;
+    gap: 8px;
+    font-size: 0.72rem;
+    border: 1px solid #2e5c22;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .score-entry { text-align: center; }
+  /* Cream labels — sharp contrast on dark green panel */
+  .score-entry .animal-name { color: #c8e0b8; font-size: 0.65rem; font-weight: 600; }
+  .score-entry .points-label { color: #ffd331; font-weight: 800; font-size: 0.8rem; }
+
+  /* ── Overlay message box ────────────────────────────────────── */
+  #message-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* Dark green with slight transparency so canvas river shows behind */
+    background: rgba(15, 34, 16, 0.96);
+    border: 2px solid #ffd331;
+    border-radius: 12px;
+    padding: 18px 20px;
+    text-align: center;
+    display: none;
+    z-index: 10;
+    width: 86%;
+    max-width: 320px;
+    box-shadow: 0 4px 24px #0009;
+  }
+
+  #message-box h2 { font-size: 1.2rem; color: #ffd331; margin-bottom: 8px; }
+  /* Cream body text — fully readable on dark bg */
+  #message-box p { margin-bottom: 12px; color: #f5f0e0; font-size: 0.85rem; line-height: 1.6; }
+
+  #restart-btn {
+    background: #e8742a;       /* festival orange CTA */
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s, transform 0.1s;
+    min-height: 44px;
+    touch-action: manipulation;
+    text-shadow: 0 1px 2px #0005;
+  }
+  #restart-btn:hover  { background: #ff8c3a; }
+  #restart-btn:active { background: #c85e1a; transform: scale(0.97); }
+
+  /* ── Bottom instructions ────────────────────────────────────── */
+  #instructions {
+    font-size: 0.72rem;
+    text-align: center;
+    padding: 0 8px;
+    flex-shrink: 0;
+    line-height: 1.6;
+  }
+
+  /* Primary instruction line — cream on dark green, clearly legible */
+  .instr-primary {
+    color: #f5f0e0;
+    font-weight: 700;
+    text-shadow: 0 1px 3px #000b;
+  }
+
+  /* Rubbish tip — green tint, still bright */
+  .instr-rubbish {
+    color: #7ee87e;
+    font-weight: 700;
+    text-shadow: 0 1px 3px #000b;
+  }
+
+  /* ── Landscape phones ───────────────────────────────────────── */
+  @media (max-height: 500px) {
+    #subtitle { display: none; }
+    #logo-wrap { padding: 4px 12px; }
+    #mrf-logo { width: 180px; }
+    #hud { font-size: 0.8rem; }
+    #scoreboard { display: none; }
+    body { gap: 3px; padding: 3px 6px 3px; }
+    #game-wrapper { width: min(100%, calc((100dvh - 70px) * 800 / 450)); }
+  }
+</style>
+</head>
+<body>
+
+<div id="branding">
+  <div id="logo-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 566.93 108.72" id="mrf-logo" aria-label="Muddy River Festival">
+      <style>.cls-1{fill:#ffd331;}</style>
+      <g><path class="cls-1" d="M49.84,37.28c-.81,0-2.03,1.21-3.24,3.65l-7.02,13.78c-1.22,2.03-2.43,2.97-3.51,2.97-1.22,0-2.3-1.08-3.24-2.97-1.08-2.03-3.11-6.08-7.02-13.37-1.48-2.84-2.57-4.19-3.38-4.19-.67,0-1.08,1.22-1.08,3.65v11.21c0,4.32.54,8.92,3.78,9.73,4.19,1.08,5.67,2.03,5.67,3.78,0,2.02-4.59,2.83-13.24,2.83h-4.32c-8.64,0-13.24-.81-13.24-2.83,0-1.76,1.48-2.7,5.67-3.78,3.38-.81,3.78-5.4,3.78-9.73v-27.69c0-4.32-.41-8.91-3.78-9.73-4.19-.94-5.67-1.89-5.67-3.65,0-2.02,4.59-2.97,13.24-2.97h4.86c6.08,0,8.78-.54,12.02,5.4,1.49,2.43,4.86,8.64,7.56,13.51.95,1.62,1.76,2.57,2.7,2.57.68,0,1.49-.81,2.16-2.57l6.89-13.1c2.84-5.54,7.43-5.81,11.21-5.81h4.46c4.73,0,7.83.14,9.59.54,2.03.4,2.57,3.64-.27,4.45-2.57.68-4.19,2.43-4.19,5.67v39.03c0,3.24,1.49,5,4.19,5.81,2.7.67,2.3,3.92.27,4.32-1.76.4-4.86.54-9.59.54h-8.91c-4.59,0-7.83-.14-9.59-.54-2.03-.4-2.3-3.65.27-4.32,2.84-.81,4.32-2.57,4.32-5.81v-16.75c0-2.57-.54-3.65-1.35-3.65Z"/><path class="cls-1" d="M105.49,59.56c3.24,0,5.4-2.56,5.4-7.16v-14.85c0-3.78-1.08-6.21-3.92-8.11-2.3-1.48-1.76-4.05.81-4.32,6.62-.67,12.02-3.78,16.34-5.81,1.08-.54,1.89-.67,2.7-.67,1.49,0,2.43.94,2.43,2.7v36.6c0,3.24.54,5,3.51,5.81,2.43.67,2.16,3.38.27,3.78s-4.19.54-8.91.54h-6.75c-4.46,0-6.21-2.3-6.48-5.27-3.11,3.24-7.83,5.67-14.72,5.67-10.4,0-14.32-6.62-14.32-15.53v-15.4c0-3.78-.94-6.21-3.78-8.11-2.3-1.48-2.03-4.05.68-4.32,6.62-.67,12.16-3.78,16.48-5.81,1.08-.54,1.89-.67,2.7-.67,1.49,0,2.43.94,2.43,2.7,0,3.24-.14,9.46-.14,16.62v14.72c0,4.19,1.62,6.89,5.27,6.89Z"/><path class="cls-1" d="M169.52,62l-.95-3.38c-3.11,4.86-8.37,9.45-16.21,9.45-10.4,0-17.96-8.51-17.96-23.23,0-15.67,7.83-25.26,19.04-25.26,5.81,0,9.86,4.05,13.24,7.16,1.35,1.22,1.35-.27,1.35-2.3,0-3.78-.95-6.21-3.78-8.11-2.3-1.48-2.3-3.92-.14-4.32,6.75-1.35,13.37-4.73,18.23-10.4.95-1.08,1.89-1.62,2.84-1.62,1.22,0,2.16,1.08,2.16,2.97,0,3.24-.94,9.18-.94,16.34v33.5c0,4.05,1.08,6.08,2.84,6.08.54,0,1.08-.13,1.62-.4,1.76-.81,2.43,1.48,1.35,2.97-2.84,4.19-8.91,7.02-13.91,7.02h-.94c-3.65,0-6.48-1.89-7.83-6.48ZM153.71,44.71c.81,7.56,3.78,12.83,7.97,12.83,6.08,0,6.35-9.59,6.35-13.78v-.27c0-9.18-3.38-15.26-8.64-14.59-4.46.41-6.62,6.62-5.67,15.8Z"/><path class="cls-1" d="M228.14,62l-.95-3.38c-3.11,4.86-8.37,9.45-16.21,9.45-10.4,0-17.96-8.51-17.96-23.23,0-15.67,7.83-25.26,19.04-25.26,5.81,0,9.86,4.05,13.24,7.16,1.35,1.22,1.35-.27,1.35-2.3,0-3.78-.95-6.21-3.78-8.11-2.3-1.48-2.3-3.92-.14-4.32,6.75-1.35,13.37-4.73,18.23-10.4.95-1.08,1.89-1.62,2.84-1.62,1.22,0,2.16,1.08,2.16,2.97,0,3.24-.94,9.18-.94,16.34v33.5c0,4.05,1.08,6.08,2.84,6.08.54,0,1.08-.13,1.62-.4,1.76-.81,2.43,1.48,1.35,2.97-2.84,4.19-8.91,7.02-13.91,7.02h-.95c-3.65,0-6.48-1.89-7.83-6.48ZM212.34,44.71c.81,7.56,3.78,12.83,7.97,12.83,6.08,0,6.35-9.59,6.35-13.78v-.27c0-9.18-3.38-15.26-8.64-14.59-4.46.41-6.62,6.62-5.67,15.8Z"/><path class="cls-1" d="M280.55,59.56c3.38,0,5.4-2.7,5.4-7.16v-14.99c0-3.78-1.08-6.08-3.78-7.97-2.43-1.62-1.89-4.19.68-4.46,6.75-.54,11.89-3.65,16.48-5.81.94-.4,1.89-.67,2.57-.67,1.48,0,2.57.94,2.57,2.7v43.09c0,18.1-10.94,24.72-26.88,24.72s-19.99-3.78-32.28-3.78-15.94,3.24-18.37,3.24c-1.35,0-2.03-1.35-2.03-3.92,0-7.7,5-13.91,16.07-13.91,18.91,0,22.42,12.96,36.87,12.96,5.27,0,8.11-2.7,8.11-8.78v-12.02c-3.11,3.24-7.83,5.67-14.72,5.67-10.4,0-14.18-6.62-14.18-15.67v-15.4c0-3.78-1.22-6.08-3.92-7.97-2.43-1.62-1.89-4.19.68-4.46,6.75-.54,12.16-3.65,16.48-5.81,1.08-.4,1.89-.67,2.7-.67,1.48,0,2.43.94,2.43,2.7v31.47c0,4.05,1.48,6.89,5.13,6.89Z"/></g>
+      <g><path class="cls-1" d="M331.76,92.06c.49-1.42.74-1.73,1.23-1.79.56,0,1.05.62,1.54,2.35l1.24,4.38c.49,1.79.31,2.59-.19,2.78-.12.06-.25.06-.37.06-.49,0-1.05-.43-2.1-1.67-.8-.99-2.16-1.36-3.52-1.36-1.23,0-1.79.5-1.79,1.61v4.63c0,1.85.68,2.72,2.59,3.27,1.17.31.99,1.79.06,1.98-.74.18-2.84.25-5,.25h-4.01c-2.16,0-3.64-.06-4.38-.25-.93-.19-1.05-1.67.12-1.98,1.3-.37,1.91-1.17,1.91-2.66v-17.96c0-1.48-.68-2.29-1.91-2.59-1.23-.37-1.05-1.85-.12-2.04.74-.19,2.22-.13,4.38-.13h14.82c2.47,0,3.02.74,3.39,3.71l.25,1.91c.43,3.15.06,4.44-.68,4.57-.87.12-1.42-.74-3.46-3.77-1.91-2.9-2.78-3.33-5.43-3.33h-.49c-1.67,0-2.04,1.23-2.04,2.47v5.49c0,1.17.56,1.6,1.73,1.6.99,0,1.85-.25,2.22-1.54Z"/><path class="cls-1" d="M370.45,91.13c-.8.12-1.36-.74-3.39-3.77-1.91-2.9-2.84-3.33-5.43-3.33h-.56c-1.67,0-2.04,1.23-2.04,2.47v4.88c0,1.17.62,1.6,1.79,1.6.99,0,1.79-.25,2.22-1.54.43-1.42.68-1.73,1.17-1.79.62,0,1.05.62,1.54,2.35l1.23,4.38c.49,1.79.31,2.59-.18,2.78-.12.06-.25.06-.37.06-.49,0-1.05-.43-2.1-1.67-.8-.99-2.1-1.36-3.52-1.36-1.24,0-1.79.49-1.79,1.6v3.89c0,2.41,1.36,3.64,3.15,3.64h.43c2.9,0,4.14-.99,6.11-3.95s2.71-3.83,3.52-3.71c.86.12,1.05.87.68,4.51-.12.87-.25,1.79-.37,2.6-.43,2.96-.99,3.64-3.4,3.64h-16.48c-2.16,0-3.58.06-4.38-.12-.93-.19-1.05-1.67.12-1.98,1.3-.37,1.91-1.17,1.91-2.66v-17.96c0-1.48-.68-2.29-1.91-2.59-1.23-.37-1.05-1.85-.12-2.04.8-.19,2.22-.13,4.38-.13h14.88c2.41,0,3.02.74,3.39,3.71l.19,1.91c.31,3.15.06,4.44-.68,4.57Z"/><path class="cls-1" d="M393.16,80.88c3.64,0,7.16.74,9.26,1.98,1.23.8,1.61,2.1,1.61,3.33,0,3.02-1.54,4.07-3.15,4.07-1.73,0-2.72-.8-4.32-3.09-1.48-2.1-2.84-3.52-4.69-3.52-2.04,0-3.27,1.05-3.27,2.35,0,1.6,1.11,3.4,7.53,5.06,6.54,1.67,9.32,4.38,9.32,8.52,0,5.93-5.43,9.14-12.72,9.14-6.42,0-11.36-1.79-12.1-5.56-.56-2.78,1.11-4.69,3.95-4.69,2.22,0,3.89,1.17,4.69,3.89.68,2.28,2.35,3.46,4.2,3.46,1.98,0,3.58-.99,3.58-2.9s-1.67-3.46-7.04-5.06c-5.99-1.79-9.51-4.44-9.51-8.89,0-5.13,5.19-8.09,12.66-8.09Z"/><path class="cls-1" d="M430.81,103.54c0,1.48.99,2.41,2.28,2.78,1.24.31,1.05,1.79.12,1.98-.8.18-2.59.25-4.69.25h-4.07c-2.16,0-3.89-.06-4.69-.25-.92-.19-1.05-1.67.12-1.98,1.3-.37,2.22-1.3,2.22-2.78l.06-17.04c0-1.24-.37-2.47-1.54-2.47h-.19c-.92,0-1.48.43-3.46,3.33-2.1,3.15-3.02,3.95-3.95,3.77-.74-.12-1.23-1.48-.62-4.57l.31-1.91c.62-2.96.99-3.71,3.4-3.71h20.74c2.41,0,2.78.74,3.33,3.71l.37,1.91c.62,3.09.12,4.44-.62,4.57h-.25c-.86,0-1.79-.93-3.7-3.77-1.91-2.9-2.53-3.33-3.46-3.33h-.18c-1.17,0-1.54,1.23-1.54,2.47v17.04Z"/><path class="cls-1" d="M448.58,83.23c-1.23-.37-1.05-1.85-.12-2.04.8-.19,2.28-.25,4.38-.25h4.07c2.16,0,3.58.06,4.38.25.93.18,1.17,1.67-.12,2.04-1.17.31-1.91,1.11-1.91,2.59v17.84c0,1.48.68,2.29,1.91,2.66,1.23.31,1.05,1.79.12,1.98-.8.18-2.22.25-4.38.25h-4.07c-2.1,0-3.58-.06-4.38-.25-.93-.19-1.11-1.67.12-1.98,1.3-.37,1.98-1.17,1.98-2.66v-17.84c0-1.48-.68-2.28-1.98-2.59Z"/><path class="cls-1" d="M487.53,98.17c.37,0,.74-.37.99-1.05l4.26-10.19c.68-1.6-.43-3.15-2.59-3.76-1.23-.31-1.05-1.79-.12-1.98.8-.19,1.48-.25,3.64-.25h3.02c2.16,0,2.9.06,3.7.25.92.18,1.11,1.67-.12,1.98-2.41.68-3.7,2.41-4.38,4.13l-7.65,18.15c-.87,2.1-1.11,3.09-3.46,3.09-2.16,0-3.21-.68-3.77-2.04l-8.7-20.68c-.56-1.36-.68-2.28-1.91-2.65-1.23-.31-1.05-1.79-.12-1.98.74-.19,2.22-.25,4.38-.25h4.01c2.16,0,3.64.06,4.38.25.93.18,1.11,1.67-.06,1.98-1.3.37-1.85,1.23-1.23,2.65l4.69,11.24c.31.74.68,1.11,1.05,1.11Z"/><path class="cls-1" d="M502.09,106.32c2.47-.68,3.7-2.41,4.38-4.07l5.93-14.14c.62-1.36.56-2.29-.06-3.27-.62-.87-1.23-1.42-2.04-1.6-1.23-.37-1.05-1.85-.12-2.04.74-.19,2.22-.25,4.38-.25h3.21c2.04,0,2.9.31,3.52.87.86.8.68,2.53,1.23,3.89l7.53,17.96c.56,1.36.68,2.29,1.98,2.66,1.17.31.99,1.79.06,1.98-.74.18-2.22.25-4.38.25h-4.01c-2.16,0-3.64-.06-4.38-.25-.93-.19-1.05-1.67.12-1.98,1.3-.37,1.79-1.24,1.17-2.66l-.37-.93c-.56-1.17-1.48-1.42-2.9-1.42h-5.19c-1.54,0-2.04.31-2.65,1.6-.37,1.54.74,2.84,2.72,3.4,1.23.31,1.05,1.79.12,1.98-.8.18-1.48.25-3.64.25h-3.02c-2.16,0-2.9-.06-3.71-.25-.92-.19-1.05-1.67.12-1.98ZM514.87,90.02c-.06.18-.19.43-.25.62l-2.59,6.24c-.25.92.06,1.23,1.36,1.23h3.21c1.3,0,1.48-.37,1.17-1.23l-2.65-6.24c-.06-.18-.19-.43-.25-.62Z"/><path class="cls-1" d="M551.9,101.68c0,2.41,1.3,3.64,3.09,3.64h.43c2.59,0,3.39-.56,5.12-3.64,1.73-3.09,2.28-4.01,3.15-4.01.99,0,1.54,1.42,1.36,5.49-.19,3.21-1.23,5.25-3.83,5.25h-15.74c-2.16,0-3.58.06-4.38-.12-.93-.19-1.05-1.67.12-1.98,1.3-.37,1.91-1.17,1.91-2.66v-17.84c0-1.48-.68-2.28-1.91-2.59-1.23-.37-1.05-1.85-.12-2.04.8-.19,2.22-.25,4.38-.25h4.08c2.1,0,3.58.06,4.38.25.92.18,1.17,1.67-.12,2.04-1.17.31-1.91,1.11-1.91,2.59v15.87Z"/></g>
+      <g><path class="cls-1" d="M354.59,43.09c-2.84,0-4.32.54-4.73,2.3v12.02c0,3.24,1.49,5,4.19,5.81,2.7.67,2.3,3.92.27,4.32-1.76.4-5,.54-9.59.54h-8.91c-4.73,0-7.83-.14-9.59-.54-2.03-.41-2.3-3.65.27-4.32,2.84-.81,4.19-2.57,4.19-5.81V18.37c0-3.24-1.48-5-4.19-5.67-2.7-.81-2.3-4.05-.27-4.46,1.76-.4,4.86-.27,9.59-.27h17.69c18.64,0,28.9,5.94,28.9,16.61,0,7.97-5.4,12.7-13.51,14.86,9.59,2.3,11.62,7.3,12.43,13.24.95,6.89,2.16,9.59,5.67,10.54,2.7.67,2.16,4.05,0,4.45-1.62.41-5.81.54-10.53.54h-2.03c-7.7,0-9.72-.27-11.89-10.54-2.43-12.02-4.46-14.59-7.97-14.59ZM355.4,36.06h.27c5.4,0,8.64-3.38,8.64-10.94,0-6.48-3.65-10.4-9.05-10.4h-2.43c-2.16,0-2.97.54-2.97,2.57v12.56c0,4.73,2.16,6.21,5.54,6.21Z"/><path class="cls-1" d="M417.94,67.53c-1.89.4-4.32.54-8.91.54h-8.24c-4.73,0-7.16-.14-8.92-.54-2.03-.41-2.3-3.11.27-3.78,2.84-.81,3.51-2.57,3.51-5.81v-20.4c0-3.78-.95-6.21-3.78-8.1-2.3-1.49-1.89-4.05.68-4.32,6.75-.68,13.1-2.43,17.42-4.46,1.08-.54,1.89-.67,2.7-.67,1.49,0,2.43.95,2.43,2.7,0,3.24-1.08,8.1-1.08,15.26v19.99c0,3.24.67,5,3.65,5.81,2.57.67,2.16,3.38.27,3.78ZM401.87,19.04c-5.27,0-9.59-2.57-10.53-7.43-1.22-5.67,3.65-10.26,10.13-11.35,1.22-.27,2.3-.27,3.38-.27,5.27,0,9.59,2.43,10.54,7.29.95,5.94-3.78,10.26-10.4,11.48-1.08.14-2.16.27-3.11.27Z"/><path class="cls-1" d="M453.2,60.51c-2.43,6.08-4.86,7.56-7.16,7.56h-1.08c-3.11,0-5-.67-7.83-7.43-.81-1.76-10.94-26.2-12.16-29.18-2.84-6.62-3.92-7.02-5.94-7.56-1.89-.54-2.03-3.38.14-3.78,2.43-.4,7.97-.54,13.37-.54h.41c2.97,0,10.81.14,13.24.54,2.16.41,2.03,3.24.14,3.78-2.7.67-3.24,2.43-2.7,3.92,1.49,3.64,3.78,9.45,4.86,12.29,1.76,4.32,2.16,5,3.38,5,1.35,0,2.43-2.43,4.86-8.51,3.11-7.7,2.97-9.99.68-11.21-1.89-.95-2.84-1.62-2.84-2.83,0-2.16,3.51-2.97,10.67-2.97,6.48,0,9.46,1.08,9.46,2.84,0,1.35-1.35,2.3-4.59,3.24-2.16.67-3.38,2.7-4.73,5.54-1.22,2.7-9.18,21.88-12.16,29.31Z"/><path class="cls-1" d="M495.61,46.06c-2.03,0-5.13.27-4.32,2.7,2.84,4.86,7.29,8.11,12.7,8.11,4.73,0,7.56-1.22,9.86-2.97.27-.27.68-.4.95-.4,1.08,0,1.62,1.76.95,3.11-2.57,5-8.51,11.75-22.02,11.75-12.7,0-23.77-7.97-23.77-23.77s12.16-24.99,25.12-24.99,20.93,6.75,20.93,14.45c0,10.67-12.29,12.02-20.39,12.02ZM492.37,41.33c3.92,0,5.27-2.97,5.27-7.3,0-4.73-1.49-9.05-4.46-9.05s-5.4,3.92-5.4,10.26v1.76c.27,3.24,1.89,4.32,4.59,4.32Z"/><path class="cls-1" d="M544.78,67.53c-1.89.4-4.19.54-8.91.54h-8.11c-4.73,0-7.29-.14-8.91-.54-2.03-.41-2.3-3.11.27-3.78,2.84-.81,3.51-2.57,3.51-5.81v-20.4c0-3.78-.94-6.21-3.78-8.1-2.3-1.49-2.03-4.05.68-4.32,6.62-.68,12.02-3.78,16.34-5.81,1.08-.54,2.03-.67,2.7-.67,1.62,0,2.57.95,2.57,2.7,0,1.62-.14,4.19-.14,7.16,2.97-5,8.37-8.92,14.99-8.92s10.94,4.86,10.94,11.62c0,7.83-5.54,12.7-10.81,12.7-3.65,0-5.94-1.76-7.29-5.67-1.22-3.51-2.16-6.21-4.32-6.21-2.3,0-3.51,3.24-3.51,5.94v19.99c0,3.24.54,5,3.65,5.81,2.43.67,2.03,3.38.14,3.78Z"/></g>
+    </svg>
+  </div>
+  <p id="subtitle">Spot the wildlife along the river · <a href="https://www.muddyriverfestival.com" target="_blank" rel="noopener" id="website-link">www.muddyriverfestival.com</a></p>
+</div>
+
+<div id="hud">
+  <div>Score: <span id="score-display">0</span></div>
+  <div>Time: <span id="timer-display">30</span>s</div>
+  <div>Combo: <span id="combo-display">x1</span></div>
+  <div>Streak: <span id="streak-display">0</span></div>
+  <div class="topscore-cell">Best: <span id="topscore-display">—</span></div>
+</div>
+
+<div id="game-wrapper">
+  <canvas id="gameCanvas" width="800" height="450"></canvas>
+  <div id="message-box">
+    <h2 id="msg-title">Ready?</h2>
+    <p id="msg-body">Click creatures before they disappear!<br>Rare animals are worth more points.</p>
+    <button id="restart-btn">Start Game</button>
+  </div>
+</div>
+
+<div id="scoreboard">
+  <div class="score-entry"><div class="animal-name">🐦 Ibis</div><div class="points-label">1 pt</div></div>
+  <div class="score-entry"><div class="animal-name">🐟 Mullet</div><div class="points-label">2 pts</div></div>
+  <div class="score-entry"><div class="animal-name">🦀 Mudcrab</div><div class="points-label">3 pts</div></div>
+  <div class="score-entry"><div class="animal-name">🦎 Blue-tongue</div><div class="points-label">4 pts</div></div>
+  <div class="score-entry"><div class="animal-name">🦩 Pelican ★</div><div class="points-label">5 pts</div></div>
+  <div class="score-entry" style="border-left:1px solid #4a7a3a;padding-left:10px"><div class="animal-name" style="color:#90ee90">♻️ Rubbish</div><div class="points-label" style="color:#90ee90">+1s</div></div>
+  <div class="score-entry" style="border-left:1px solid #4a7a3a;padding-left:10px"><div class="animal-name" style="color:#ff9999">⚠️ Decoy</div><div class="points-label" style="color:#ff9999">-1 pt</div></div>
+</div>
+
+<p id="instructions">Click creatures to spot them · Combo = bonus points!<br><span style="color:#90ee90">♻️ Pick up rubbish for time increases!</span></p>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// Polyfill roundRect for older browsers/WebViews
+if (!ctx.roundRect) {
+  ctx.roundRect = function(x, y, w, h, r) {
+    r = Math.min(r, w/2, h/2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.lineTo(x + w - r, y);
+    this.arcTo(x + w, y, x + w, y + r, r);
+    this.lineTo(x + w, y + h - r);
+    this.arcTo(x + w, y + h, x + w - r, y + h, r);
+    this.lineTo(x + r, y + h);
+    this.arcTo(x, y + h, x, y + h - r, r);
+    this.lineTo(x, y + r);
+    this.arcTo(x, y, x + r, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
+// ── Colour palette ───────────────────────────────────────────────
+const SKY_TOP    = '#87CEEB';
+const SKY_BOT    = '#c8e8f5';
+const BUSH_DARK  = '#2d5a1b';
+const BUSH_MID   = '#4a8f3f';
+const BUSH_LIGHT = '#6abf5e';
+const WATER_TOP  = '#1a6b8a';
+const WATER_BOT  = '#0d3d52';
+const BANK_TOP   = '#b5854a';
+const BANK_BOT   = '#8a6030';
+const MUD_COL    = '#7a5c38';
+const ROCK_COL   = '#8a8070';
+
+// ── Animal definitions ───────────────────────────────────────────
+const ANIMALS = {
+  ibis: {
+    label: 'Ibis', points: 1, rarity: 0.30,
+    zone: 'bank', color: '#f0f0f0', accentColor: '#1a1a1a',
+    draw: drawIbis
+  },
+  mullet: {
+    label: 'Mullet', points: 2, rarity: 0.25,
+    zone: 'water', color: '#6a8fa0', accentColor: '#c0d8e0',
+    draw: drawMullet
+  },
+  mudcrab: {
+    label: 'Mudcrab', points: 3, rarity: 0.20,
+    zone: 'mud', color: '#8B4513', accentColor: '#cd7f32',
+    draw: drawMudcrab
+  },
+  bluetongue: {
+    label: 'Blue-tongue', points: 4, rarity: 0.15,
+    zone: 'bank', color: '#7a6a50', accentColor: '#4169e1',
+    draw: drawBluetongue
+  },
+  pelican: {
+    label: 'Pelican', points: 5, rarity: 0.10,
+    zone: 'sky', color: '#ffffff', accentColor: '#ff8c00',
+    draw: drawPelican
+  }
+};
+
+// ── Scene layout constants ───────────────────────────────────────
+const SCENE = {
+  skyTop:    0,
+  skyBot:    110,   // sky → treeline
+  treeBot:   160,   // bottom of trees / top of bank
+  bankTop:   160,
+  bankBot:   230,   // where water starts
+  waterTop:  230,
+  waterBot:  390,
+  mudTop:    220,
+  mudBot:    250
+};
+
+// ── Rubbish definitions ──────────────────────────────────────────
+const RUBBISH = {
+  bottle: {
+    label: '+1s', timeBonus: 1, rarity: 0.35,
+    zone: 'bank', draw: drawBottle
+  },
+  bag: {
+    label: '+1s', timeBonus: 1, rarity: 0.35,
+    zone: 'water', draw: drawPlasticBag
+  },
+  bike: {
+    label: '+1s', timeBonus: 1, rarity: 0.30,
+    zone: 'mud', draw: drawRustedBike
+  }
+};
+
+// ── Zone → y-range helper ────────────────────────────────────────
+function zoneY(zone) {
+  switch(zone) {
+    case 'sky':   return { min: SCENE.skyTop + 20,  max: SCENE.skyBot - 10 };
+    case 'bank':  return { min: SCENE.bankTop + 10, max: SCENE.bankBot - 10 };
+    case 'water': return { min: SCENE.waterTop + 20, max: SCENE.waterBot - 30 };
+    case 'mud':   return { min: SCENE.mudTop,       max: SCENE.mudBot };
+    default:      return { min: 50, max: 400 };
+  }
+}
+
+// ── Cached gradients (built once, reused every frame) ─────────────
+let cachedSkyGrad = null;
+let cachedBankGrad = null;
+let cachedWaterGrad = null;
+let cachedSunGrad = null;
+function buildGradientCache() {
+  cachedSkyGrad = ctx.createLinearGradient(0, 0, 0, SCENE.skyBot);
+  cachedSkyGrad.addColorStop(0, '#5ba3d4');
+  cachedSkyGrad.addColorStop(1, '#c8e8f5');
+
+  cachedBankGrad = ctx.createLinearGradient(0, SCENE.bankTop, 0, SCENE.bankBot + 20);
+  cachedBankGrad.addColorStop(0, '#c8a86a');
+  cachedBankGrad.addColorStop(0.5, '#b5854a');
+  cachedBankGrad.addColorStop(1, '#8a6030');
+
+  cachedWaterGrad = ctx.createLinearGradient(0, SCENE.waterTop, 0, SCENE.waterBot);
+  cachedWaterGrad.addColorStop(0, '#2a8aaa');
+  cachedWaterGrad.addColorStop(0.4, '#1a6b8a');
+  cachedWaterGrad.addColorStop(1, '#0d3d52');
+
+  cachedSunGrad = ctx.createRadialGradient(W-80,45,4, W-80,45,28);
+  cachedSunGrad.addColorStop(0, '#fffde0');
+  cachedSunGrad.addColorStop(1, '#ffe066');
+}
+
+// Pre-built static pebble positions (computed once)
+const PEBBLES = Array.from({length: 18}, (_, i) => ({
+  x: (i * 47 + 30) % W,
+  y: SCENE.bankTop + 15 + (i * 13) % 40,
+  rx: 7 + i%5,
+  ry: 4 + i%3,
+  rot: 0.3,
+  col: i % 3 === 0 ? '#a09080' : '#c0b098'
+}));
+const SHORE_ROCKS = Array.from({length: 10}, (_, r) => ({
+  x: r * 82 + 30,
+  y: SCENE.waterBot + 8,
+  col: r%2===0 ? ROCK_COL : '#706050'
+}));
+
+// ── State ────────────────────────────────────────────────────────
+let gameState = 'idle'; // idle | playing | over
+let score = 0;
+let timeLeft = 30;
+let combo = 1;
+let comboTimer = 0;
+let streak = 0;           // consecutive hits without a miss
+let screenShake = 0;      // frames of shake remaining
+let creatures = [];
+let rubbish = [];
+let particles = [];
+let floatTexts = [];
+let bgTrees = [];
+let waterOffset = 0;
+let timerInterval = null;
+let spawnTimer = 0;
+let SPAWN_INTERVAL = 120; // frames
+let rubbishTimer = 0;
+let RUBBISH_INTERVAL = 300; // spawn rubbish every ~5s at 60fps
+// Difficulty ramps with time elapsed
+let diffLevel = 0;  // 0=easy, 1=medium, 2=hard, 3=frantic
+
+// ── Background trees ─────────────────────────────────────────────
+function buildTrees() {
+  buildGradientCache();  // refresh cached gradients
+  bgTrees = [];
+  for (let i = 0; i < 22; i++) {
+    bgTrees.push({
+      x: Math.random() * W,
+      h: 50 + Math.random() * 55,
+      w: 18 + Math.random() * 28,
+      layer: Math.random()
+    });
+  }
+  bgTrees.sort((a, b) => a.layer - b.layer);
+}
+
+// ── Drawing helpers ──────────────────────────────────────────────
+function drawScene() {
+  // Sky gradient (cached)
+  ctx.fillStyle = cachedSkyGrad;
+  ctx.fillRect(0, 0, W, SCENE.skyBot);
+
+  // Sun (cached gradient)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(W - 80, 45, 28, 0, Math.PI * 2);
+  ctx.fillStyle = cachedSunGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // Background treeline — eucalyptus gum trees
+  bgTrees.forEach(t => {
+    ctx.save();
+    const cx = t.x + t.w / 2;
+    const base = SCENE.treeBot;
+    const trunkH = t.h * 0.62;
+    const trunkW = Math.max(3, t.w * 0.13);
+    // Depth-based colour fade
+    const d = t.layer; // 0=far, 1=near
+    // Trunk: pale silver-white eucalyptus bark with patches
+    const trunkLight = `rgba(${190+Math.floor(d*40)},${185+Math.floor(d*35)},${170+Math.floor(d*30)},${0.55+d*0.4})`;
+    const trunkDark  = `rgba(${140+Math.floor(d*30)},${130+Math.floor(d*25)},${110+Math.floor(d*20)},${0.55+d*0.4})`;
+    let tGrad = ctx.createLinearGradient(cx - trunkW, 0, cx + trunkW, 0);
+    tGrad.addColorStop(0,   trunkDark);
+    tGrad.addColorStop(0.3, trunkLight);
+    tGrad.addColorStop(0.7, trunkLight);
+    tGrad.addColorStop(1,   trunkDark);
+    ctx.fillStyle = tGrad;
+    // Slightly curved trunk via quad bezier fill
+    ctx.beginPath();
+    ctx.moveTo(cx - trunkW, base);
+    ctx.quadraticCurveTo(cx - trunkW + t.w*0.06, base - trunkH*0.5, cx - trunkW*0.5, base - trunkH);
+    ctx.lineTo(cx + trunkW*0.5, base - trunkH);
+    ctx.quadraticCurveTo(cx + trunkW - t.w*0.06, base - trunkH*0.5, cx + trunkW, base);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bark strip texture — a few darker vertical streaks
+    ctx.strokeStyle = `rgba(${100+Math.floor(d*30)},${90+Math.floor(d*20)},${70+Math.floor(d*20)},0.35)`;
+    ctx.lineWidth = 1;
+    for (let s = 0; s < 3; s++) {
+      const sx = cx - trunkW*0.6 + s * trunkW*0.6;
+      ctx.beginPath();
+      ctx.moveTo(sx, base - trunkH * 0.1);
+      ctx.quadraticCurveTo(sx + 2, base - trunkH * 0.5, sx - 1, base - trunkH * 0.85);
+      ctx.stroke();
+    }
+
+    // Canopy: drooping, irregular eucalyptus leaf clusters
+    // Silvery-green, blue-green palette typical of gums
+    const leafColors = [
+      `rgba(${100+Math.floor(d*40)},${130+Math.floor(d*30)},${90+Math.floor(d*20)},${0.7+d*0.25})`,
+      `rgba(${80+Math.floor(d*40)},${115+Math.floor(d*30)},${85+Math.floor(d*20)},${0.65+d*0.25})`,
+      `rgba(${120+Math.floor(d*35)},${145+Math.floor(d*25)},${100+Math.floor(d*20)},${0.6+d*0.25})`,
+      `rgba(${90+Math.floor(d*40)},${125+Math.floor(d*30)},${110+Math.floor(d*20)},${0.6+d*0.25})`,
+    ];
+    const canopyTop = base - t.h;
+    const canopyMid = base - trunkH;
+    // Draw several drooping blob clusters
+    const clusters = [
+      { ox: 0,           oy: canopyTop,        rx: t.w*0.55, ry: t.h*0.22 },
+      { ox: -t.w*0.38,  oy: canopyTop+t.h*0.1, rx: t.w*0.38, ry: t.h*0.18 },
+      { ox:  t.w*0.38,  oy: canopyTop+t.h*0.08,rx: t.w*0.35, ry: t.h*0.17 },
+      { ox: -t.w*0.22,  oy: canopyTop+t.h*0.22,rx: t.w*0.30, ry: t.h*0.16 },
+      { ox:  t.w*0.18,  oy: canopyTop+t.h*0.25,rx: t.w*0.28, ry: t.h*0.15 },
+      // Drooping lower wisps
+      { ox: -t.w*0.42,  oy: canopyMid - t.h*0.12, rx: t.w*0.18, ry: t.h*0.22 },
+      { ox:  t.w*0.40,  oy: canopyMid - t.h*0.10, rx: t.w*0.17, ry: t.h*0.20 },
+      { ox:  t.w*0.08,  oy: canopyMid - t.h*0.08, rx: t.w*0.22, ry: t.h*0.18 },
+    ];
+    clusters.forEach((cl, ci) => {
+      ctx.fillStyle = leafColors[ci % leafColors.length];
+      ctx.beginPath();
+      // Slightly irregular ellipse via small rotation
+      ctx.ellipse(cx + cl.ox, cl.oy, cl.rx, cl.ry, (ci * 0.4) % Math.PI, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+  });
+
+  // Bank / ground (cached gradient)
+  ctx.fillStyle = cachedBankGrad;
+  ctx.fillRect(0, SCENE.bankTop, W, SCENE.bankBot - SCENE.bankTop + 20);
+
+  // Mud strip at waterline
+  ctx.fillStyle = MUD_COL;
+  ctx.fillRect(0, SCENE.mudTop, W, SCENE.mudBot - SCENE.mudTop);
+
+  // Scattered pebbles/rocks on bank (pre-computed positions)
+  for (let i = 0; i < PEBBLES.length; i++) {
+    const pb = PEBBLES[i];
+    ctx.fillStyle = pb.col;
+    ctx.beginPath();
+    ctx.ellipse(pb.x, pb.y, pb.rx, pb.ry, pb.rot, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Water (cached gradient)
+  waterOffset = (waterOffset + 0.4) % 60;
+  ctx.fillStyle = cachedWaterGrad;
+  ctx.fillRect(0, SCENE.waterTop, W, SCENE.waterBot - SCENE.waterTop);
+
+  // Water ripples
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1.5;
+  for (let row = 0; row < 8; row++) {
+    let ry = SCENE.waterTop + 25 + row * 20;
+    for (let wx = -60 + waterOffset; wx < W + 60; wx += 60) {
+      ctx.beginPath();
+      ctx.moveTo(wx, ry);
+      ctx.bezierCurveTo(wx+15, ry-4, wx+30, ry+4, wx+60, ry);
+      ctx.stroke();
+    }
+  }
+
+  // Water glints
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  for (let g = 0; g < 12; g++) {
+    let gx = ((g * 67 + waterOffset * 3) % W);
+    let gy = SCENE.waterTop + 15 + (g * 17) % (SCENE.waterBot - SCENE.waterTop - 30);
+    ctx.beginPath();
+    ctx.ellipse(gx, gy, 8, 2, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // River bank foreground edge (reeds/grass)
+  drawReeds();
+
+  // Bottom mud/shore
+  ctx.fillStyle = '#6a4e2e';
+  ctx.fillRect(0, SCENE.waterBot, W, H - SCENE.waterBot);
+  // Rocks at bottom shore (pre-computed)
+  for (let r = 0; r < SHORE_ROCKS.length; r++) {
+    const sr = SHORE_ROCKS[r];
+    ctx.fillStyle = sr.col;
+    ctx.beginPath();
+    ctx.ellipse(sr.x, sr.y, 22, 10, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Golf course nod — bottom right: putting green with flag
+  drawGolfFlag();
+}
+
+function drawReeds() {
+  ctx.strokeStyle = '#5a8a30';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 14; i++) {
+    let rx = i * 58 + 15 + (i%3)*12;
+    let rh = 25 + (i%4)*8;
+    ctx.beginPath();
+    ctx.moveTo(rx, SCENE.waterTop);
+    ctx.quadraticCurveTo(rx + (i%2?4:-4), SCENE.waterTop - rh/2, rx + (i%2?3:-3), SCENE.waterTop - rh);
+    ctx.stroke();
+    // Reed head
+    ctx.fillStyle = '#8B6914';
+    ctx.beginPath();
+    ctx.ellipse(rx + (i%2?3:-3), SCENE.waterTop - rh, 3, 7, 0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawGolfFlag() {
+  ctx.save();
+  const gx = W - 68;   // flag x position
+  const gy = H - 14;   // ground level
+  const poleH = 52;
+
+  // Putting green — a tidy oval of short grass
+  let greenGrad = ctx.createRadialGradient(gx, gy - 4, 4, gx, gy - 4, 38);
+  greenGrad.addColorStop(0,   '#4fc94f');
+  greenGrad.addColorStop(0.6, '#38a838');
+  greenGrad.addColorStop(1,   '#2a8a2a');
+  ctx.fillStyle = greenGrad;
+  ctx.beginPath();
+  ctx.ellipse(gx, gy - 4, 38, 14, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Mown stripes — subtle lighter bands
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 4;
+  for (let s = -28; s <= 28; s += 10) {
+    ctx.beginPath();
+    ctx.moveTo(gx + s, gy - 14);
+    ctx.lineTo(gx + s, gy + 6);
+    ctx.stroke();
+  }
+
+  // Hole cup
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.ellipse(gx, gy - 4, 5, 2.5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Flag pole
+  ctx.strokeStyle = '#e8e0cc';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(gx, gy - 4);
+  ctx.lineTo(gx, gy - 4 - poleH);
+  ctx.stroke();
+
+  // Flag — triangular, red with a white stripe
+  const fx = gx;
+  const fy = gy - 4 - poleH;
+  ctx.fillStyle = '#e02020';
+  ctx.beginPath();
+  ctx.moveTo(fx, fy);
+  ctx.lineTo(fx + 22, fy + 10);
+  ctx.lineTo(fx, fy + 20);
+  ctx.closePath();
+  ctx.fill();
+  // White stripe on flag
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.moveTo(fx, fy + 7);
+  ctx.lineTo(fx + 22, fy + 10);
+  ctx.lineTo(fx + 18, fy + 12);
+  ctx.lineTo(fx, fy + 9);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tiny "19th hole" label
+  ctx.fillStyle = 'rgba(255,255,220,0.75)';
+  ctx.font = 'bold 8px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('19th', gx, gy + 9);
+
+  ctx.restore();
+}
+
+// ── Animal draw functions ────────────────────────────────────────
+function drawIbis(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Body
+  ctx.fillStyle = '#f5f5f5';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 18, 11, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Black wingtips
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.ellipse(16, 2, 7, 5, 0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.ellipse(-18, -5, 7, 6, -0.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Curved beak
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-23, -6);
+  ctx.quadraticCurveTo(-38, -2, -36, 4);
+  ctx.stroke();
+
+  // Eye
+  ctx.fillStyle = '#ffcc00';
+  ctx.beginPath();
+  ctx.arc(-20, -7, 2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Legs
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-5, 10); ctx.lineTo(-5, 22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, 10); ctx.lineTo(5, 22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-5, 22); ctx.lineTo(-12, 26); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-5, 22); ctx.lineTo(0, 27); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, 22); ctx.lineTo(0, 26); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, 22); ctx.lineTo(10, 27); ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawMullet(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Tail fin
+  ctx.fillStyle = '#5a7f90';
+  ctx.beginPath();
+  ctx.moveTo(20, 0);
+  ctx.lineTo(32, -10);
+  ctx.lineTo(32, 10);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body
+  let grad = ctx.createLinearGradient(-22, -8, -22, 8);
+  grad.addColorStop(0, '#8ab8cc');
+  grad.addColorStop(0.4, '#5a8fa8');
+  grad.addColorStop(1, '#3a6a80');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 22, 9, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Lateral line
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-15, -2);
+  ctx.lineTo(18, -2);
+  ctx.stroke();
+
+  // Dorsal fin
+  ctx.fillStyle = '#4a7a90';
+  ctx.beginPath();
+  ctx.moveTo(-5, -9);
+  ctx.lineTo(0, -18);
+  ctx.lineTo(10, -9);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head/mouth
+  ctx.fillStyle = '#4a7a90';
+  ctx.beginPath();
+  ctx.ellipse(-20, 0, 7, 7, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-22, -1, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-22, -1, 1.2, 0, Math.PI*2); ctx.fill();
+
+  // Scales
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 0.8;
+  for (let s = -10; s < 18; s += 7) {
+    ctx.beginPath();
+    ctx.arc(s, 0, 5, 0, Math.PI);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawMudcrab(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Shell
+  let shellGrad = ctx.createRadialGradient(-2,-2,2, 0,0,18);
+  shellGrad.addColorStop(0, '#cd7f32');
+  shellGrad.addColorStop(0.6, '#8B4513');
+  shellGrad.addColorStop(1, '#5c2e0a');
+  ctx.fillStyle = shellGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 20, 14, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#5c2e0a';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Shell lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 0.8;
+  for (let l = -2; l <= 2; l++) {
+    ctx.beginPath();
+    ctx.moveTo(l*5, -14);
+    ctx.lineTo(l*5, 14);
+    ctx.stroke();
+  }
+
+  // Big claws
+  function drawClaw(side) {
+    ctx.save();
+    ctx.scale(side, 1);
+    // Upper arm
+    ctx.fillStyle = '#a05520';
+    ctx.beginPath();
+    ctx.ellipse(26, -4, 10, 5, -0.4, 0, Math.PI*2);
+    ctx.fill();
+    // Claw pincers
+    ctx.fillStyle = '#cd7f32';
+    ctx.beginPath();
+    ctx.ellipse(36, -9, 8, 4, -0.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(36, -1, 8, 3, 0.3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+  drawClaw(1);
+  drawClaw(-1);
+
+  // Walking legs (3 each side)
+  ctx.strokeStyle = '#7a4010';
+  ctx.lineWidth = 2;
+  [-1, 1].forEach(side => {
+    for (let l = 0; l < 3; l++) {
+      let lx = side * (8 + l * 5);
+      ctx.beginPath();
+      ctx.moveTo(lx, 12);
+      ctx.lineTo(lx + side*8, 22);
+      ctx.lineTo(lx + side*12, 18);
+      ctx.stroke();
+    }
+  });
+
+  // Eyes on stalks
+  [-8, 8].forEach(ex => {
+    ctx.strokeStyle = '#5c2e0a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(ex, -12); ctx.lineTo(ex, -18); ctx.stroke();
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(ex, -20, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(ex+1, -21, 1, 0, Math.PI*2); ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawBluetongue(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Tail
+  ctx.fillStyle = '#7a6a50';
+  ctx.beginPath();
+  ctx.moveTo(30, 3);
+  ctx.quadraticCurveTo(55, 8, 65, 2);
+  ctx.quadraticCurveTo(55, -2, 30, -3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body
+  let bodyGrad = ctx.createLinearGradient(-30, -10, -30, 10);
+  bodyGrad.addColorStop(0, '#9a8a6a');
+  bodyGrad.addColorStop(0.5, '#7a6a50');
+  bodyGrad.addColorStop(1, '#5a4a30');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 32, 11, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Scale pattern
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  for (let sx = -25; sx < 30; sx += 8) {
+    for (let sy = -1; sy <= 1; sy++) {
+      ctx.beginPath();
+      ctx.ellipse(sx + (sy*4), sy*4, 4, 3, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Head
+  let headGrad = ctx.createLinearGradient(-42, -8, -42, 8);
+  headGrad.addColorStop(0, '#a08060');
+  headGrad.addColorStop(1, '#6a5040');
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.ellipse(-36, 0, 14, 10, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Eye
+  ctx.fillStyle = '#ffaa00';
+  ctx.beginPath(); ctx.arc(-40, -3, 3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(-40, -3, 1.5, 0, Math.PI*2); ctx.fill();
+
+  // Blue tongue flicking
+  ctx.fillStyle = '#4169e1';
+  ctx.beginPath();
+  ctx.moveTo(-50, 0);
+  ctx.lineTo(-58, -3);
+  ctx.lineTo(-60, 0);
+  ctx.lineTo(-58, 3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Legs
+  ctx.strokeStyle = '#6a5a40';
+  ctx.lineWidth = 2;
+  [[-15, 1], [5, 1], [-15, -1], [5, -1]].forEach(([lx, side]) => {
+    ctx.beginPath();
+    ctx.moveTo(lx, 10 * side);
+    ctx.lineTo(lx - 4, 18 * side);
+    ctx.lineTo(lx + 4, 22 * side);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function drawPelican(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Wings (spread)
+  ctx.fillStyle = '#f0f0f0';
+  // Left wing
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-30, -20, -55, -8);
+  ctx.quadraticCurveTo(-40, 10, 0, 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 0.8; ctx.stroke();
+
+  // Right wing
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(30, -20, 55, -8);
+  ctx.quadraticCurveTo(40, 10, 0, 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Wing tips (dark)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.moveTo(-40, -8);
+  ctx.quadraticCurveTo(-55, -8, -55, -4);
+  ctx.quadraticCurveTo(-48, 4, -35, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(40, -8);
+  ctx.quadraticCurveTo(55, -8, 55, -4);
+  ctx.quadraticCurveTo(48, 4, 35, 5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = '#f8f8f8';
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 18, 12, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Neck + head
+  ctx.fillStyle = '#f5f5f5';
+  ctx.beginPath();
+  ctx.ellipse(-10, -8, 8, 12, -0.3, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(-18, -18, 10, 9, -0.1, 0, Math.PI*2);
+  ctx.fill();
+
+  // Beak (long orange)
+  ctx.fillStyle = '#ff8c00';
+  ctx.beginPath();
+  ctx.moveTo(-24, -20);
+  ctx.lineTo(-48, -18);
+  ctx.lineTo(-48, -14);
+  ctx.lineTo(-24, -14);
+  ctx.closePath();
+  ctx.fill();
+
+  // Throat pouch
+  ctx.fillStyle = '#ff6600';
+  ctx.beginPath();
+  ctx.moveTo(-26, -14);
+  ctx.quadraticCurveTo(-36, -8, -26, -8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Eye
+  ctx.fillStyle = '#ff4400';
+  ctx.beginPath(); ctx.arc(-20, -20, 3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(-20, -20, 1.5, 0, Math.PI*2); ctx.fill();
+
+  // ★ Rare star indicator
+  ctx.fillStyle = '#f9e04b';
+  ctx.font = 'bold 14px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('★', 0, -30);
+
+  ctx.restore();
+}
+
+// ── Rubbish draw functions ───────────────────────────────────────
+function drawBottle(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Body - clear plastic bottle
+  ctx.fillStyle = 'rgba(180,220,240,0.75)';
+  ctx.strokeStyle = 'rgba(100,160,200,0.9)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.roundRect(-7, -18, 14, 26, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // Neck
+  ctx.fillStyle = 'rgba(160,200,220,0.75)';
+  ctx.beginPath();
+  ctx.roundRect(-4, -26, 8, 10, 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Cap (red)
+  ctx.fillStyle = '#cc2222';
+  ctx.beginPath();
+  ctx.roundRect(-4, -30, 8, 6, 2);
+  ctx.fill();
+
+  // Label stripe
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.rect(-6, -10, 12, 6);
+  ctx.fill();
+
+  // Glint
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-4, -15);
+  ctx.lineTo(-4, -4);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawPlasticBag(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // ── Supermarket-style bag floating on water ──
+  // Bag colour: murky translucent white-grey
+  const bagFill = 'rgba(215,225,230,0.60)';
+  const bagStroke = 'rgba(170,185,195,0.85)';
+
+  // Main sagging body — wide at top, sags down in a U
+  ctx.fillStyle = bagFill;
+  ctx.strokeStyle = bagStroke;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-22, -12);             // top-left shoulder
+  ctx.lineTo(22, -12);              // top-right shoulder
+  ctx.bezierCurveTo(26, -12, 28, 0, 24, 14);   // right side curves out
+  ctx.quadraticCurveTo(16, 26, 0, 28);          // sag bottom right
+  ctx.quadraticCurveTo(-16, 26, -24, 14);       // sag bottom left
+  ctx.bezierCurveTo(-28, 0, -26, -12, -22, -12);// left side
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Gather / pinch at the top (handles meet here)
+  ctx.fillStyle = 'rgba(195,208,218,0.7)';
+  ctx.beginPath();
+  ctx.ellipse(0, -12, 10, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Left handle loop
+  ctx.strokeStyle = bagStroke;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-8, -12);
+  ctx.quadraticCurveTo(-18, -30, -6, -34);
+  ctx.quadraticCurveTo(0, -36, 0, -28);
+  ctx.stroke();
+
+  // Right handle loop
+  ctx.beginPath();
+  ctx.moveTo(8, -12);
+  ctx.quadraticCurveTo(18, -30, 6, -34);
+  ctx.quadraticCurveTo(0, -36, 0, -28);
+  ctx.stroke();
+
+  // Crinkle / fold lines inside bag
+  ctx.strokeStyle = 'rgba(160,178,188,0.45)';
+  ctx.lineWidth = 0.8;
+  // Centre vertical crease
+  ctx.beginPath(); ctx.moveTo(0, -10); ctx.quadraticCurveTo(2, 8, 0, 22); ctx.stroke();
+  // Left fold
+  ctx.beginPath(); ctx.moveTo(-14, -8); ctx.quadraticCurveTo(-12, 5, -10, 18); ctx.stroke();
+  // Right fold
+  ctx.beginPath(); ctx.moveTo(14, -8); ctx.quadraticCurveTo(12, 5, 10, 18); ctx.stroke();
+
+  // Slight sheen highlight
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-14, -8);
+  ctx.quadraticCurveTo(-8, 4, -6, 18);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawRustedBike(x, y, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // ── Proper side-profile rusted bicycle ──
+  // Colour palette: heavy rust
+  const rustRim   = '#7a3a10';
+  const rustFrame = '#a04818';
+  const rustLight = '#c86828';
+  const rustSpoke = '#6a3010';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Wheel centres (side-on, left = rear, right = front)
+  const rWx = -24, rWy = 10, rRad = 18;  // rear wheel
+  const fWx =  24, fWy = 10, fRad = 18;  // front wheel
+
+  // ── Rear wheel ──
+  ctx.strokeStyle = rustRim;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath(); ctx.arc(rWx, rWy, rRad, 0, Math.PI*2); ctx.stroke();
+  // Hub
+  ctx.fillStyle = rustFrame;
+  ctx.beginPath(); ctx.arc(rWx, rWy, 3, 0, Math.PI*2); ctx.fill();
+  // Spokes (8 per wheel)
+  ctx.strokeStyle = rustSpoke;
+  ctx.lineWidth = 0.9;
+  for (let s = 0; s < 8; s++) {
+    const a = (s / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(rWx + Math.cos(a)*3, rWy + Math.sin(a)*3);
+    ctx.lineTo(rWx + Math.cos(a)*rRad, rWy + Math.sin(a)*rRad);
+    ctx.stroke();
+  }
+
+  // ── Front wheel ──
+  ctx.strokeStyle = rustRim;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath(); ctx.arc(fWx, fWy, fRad, 0, Math.PI*2); ctx.stroke();
+  ctx.fillStyle = rustFrame;
+  ctx.beginPath(); ctx.arc(fWx, fWy, 3, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = rustSpoke;
+  ctx.lineWidth = 0.9;
+  for (let s = 0; s < 8; s++) {
+    const a = (s / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(fWx + Math.cos(a)*3, fWy + Math.sin(a)*3);
+    ctx.lineTo(fWx + Math.cos(a)*fRad, fWy + Math.sin(a)*fRad);
+    ctx.stroke();
+  }
+
+  // ── Diamond frame ──
+  // Key points:  BB (bottom bracket) = (0, 10), seat tube top = (0,-16)
+  //              head tube top = (18,-12), head tube bot = (18,-2)
+  const BB  = [0,   10];   // bottom bracket
+  const ST  = [0,  -16];   // seat tube top
+  const HTt = [18, -12];   // head tube top
+  const HTb = [18,  -2];   // head tube bottom
+  ctx.strokeStyle = rustFrame;
+  ctx.lineWidth = 3;
+  // Top tube: seat top → head top
+  ctx.beginPath(); ctx.moveTo(...ST); ctx.lineTo(...HTt); ctx.stroke();
+  // Down tube: head top → BB
+  ctx.beginPath(); ctx.moveTo(...HTt); ctx.lineTo(...BB); ctx.stroke();
+  // Seat tube: BB → seat top
+  ctx.beginPath(); ctx.moveTo(...BB); ctx.lineTo(...ST); ctx.stroke();
+  // Chain stays: BB → rear axle
+  ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(...BB); ctx.lineTo(rWx, rWy); ctx.stroke();
+  // Seat stays: seat top → rear axle
+  ctx.beginPath(); ctx.moveTo(...ST); ctx.lineTo(rWx, rWy); ctx.stroke();
+  // Fork: head tube → front axle
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(...HTt); ctx.lineTo(fWx, fWy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...HTb); ctx.lineTo(fWx, fWy); ctx.stroke();
+  // Head tube (short vertical)
+  ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(...HTt); ctx.lineTo(...HTb); ctx.stroke();
+
+  // ── Seat ──
+  ctx.strokeStyle = rustLight;
+  ctx.lineWidth = 1.8;
+  // Seat post
+  ctx.beginPath(); ctx.moveTo(0, -16); ctx.lineTo(0, -22); ctx.stroke();
+  // Saddle
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-8, -22);
+  ctx.bezierCurveTo(-4, -24, 4, -24, 8, -21);
+  ctx.stroke();
+
+  // ── Handlebars ──
+  ctx.lineWidth = 2;
+  // Stem rises from head tube top
+  ctx.beginPath(); ctx.moveTo(18, -12); ctx.lineTo(18, -22); ctx.stroke();
+  // Bar curves forward
+  ctx.beginPath();
+  ctx.moveTo(12, -22);
+  ctx.quadraticCurveTo(18, -24, 24, -21);
+  ctx.stroke();
+
+  // ── Rust texture: a few orange blotch dots ──
+  ctx.fillStyle = 'rgba(200,100,20,0.4)';
+  [[rWx+8, rWy-6], [BB[0]+4, BB[1]-3], [HTt[0]-2, HTt[1]+4], [fWx-6, fWy-10]].forEach(([bx,by]) => {
+    ctx.beginPath(); ctx.arc(bx, by, 3+Math.random()*2, 0, Math.PI*2); ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+// ── Spawn a creature ─────────────────────────────────────────────
+function spawnCreature(isDecoy = false, speedMul = 1, lifeMul = 1) {
+  const keys = Object.keys(ANIMALS);
+  // Weighted random by rarity
+  let total = keys.reduce((s, k) => s + ANIMALS[k].rarity, 0);
+  let r = Math.random() * total;
+  let chosen;
+  for (let k of keys) {
+    r -= ANIMALS[k].rarity;
+    if (r <= 0) { chosen = k; break; }
+  }
+  chosen = chosen || 'ibis';
+
+  const def = ANIMALS[chosen];
+  const zone = zoneY(def.zone);
+  const y = zone.min + Math.random() * (zone.max - zone.min);
+  const x = 80 + Math.random() * (W - 160);
+
+  // life = frames; shorter at higher difficulty
+  let life = (180 + Math.random() * 120) * lifeMul;
+  let scale = 0.85 + Math.random() * 0.35;
+
+  creatures.push({
+    type: chosen,
+    def,
+    x, y,
+    scale,
+    life,
+    maxLife: life,
+    bobPhase: Math.random() * Math.PI * 2,
+    bobAmp: def.zone === 'water' ? 4 : (def.zone === 'sky' ? 6 : 2),
+    bobSpeed: (0.04 + Math.random() * 0.03) * speedMul,
+    alpha: 0,
+    fadingIn: true,
+    clicked: false,
+    clickAnim: 0,
+    radius: def.zone === 'water' ? 30 : 36,
+    isDecoy,         // decoy = looks like ibis but gives -1pt penalty
+    darting: false,
+    dartVx: 0,
+    dartVy: 0
+  });
+}
+
+// ── Spawn rubbish ────────────────────────────────────────────────
+function spawnRubbish() {
+  const keys = Object.keys(RUBBISH);
+  let total = keys.reduce((s, k) => s + RUBBISH[k].rarity, 0);
+  let r = Math.random() * total;
+  let chosen;
+  for (let k of keys) {
+    r -= RUBBISH[k].rarity;
+    if (r <= 0) { chosen = k; break; }
+  }
+  chosen = chosen || 'bottle';
+
+  const def = RUBBISH[chosen];
+  const zone = zoneY(def.zone);
+  const y = zone.min + Math.random() * (zone.max - zone.min);
+  const x = 80 + Math.random() * (W - 160);
+  let life = 240 + Math.random() * 120;
+
+  rubbish.push({
+    type: chosen,
+    def,
+    x, y,
+    scale: 0.75 + Math.random() * 0.25,
+    life,
+    maxLife: life,
+    bobPhase: Math.random() * Math.PI * 2,
+    bobAmp: def.zone === 'water' ? 3 : 1,
+    bobSpeed: 0.03 + Math.random() * 0.02,
+    alpha: 0,
+    fadingIn: true,
+    clicked: false,
+    clickAnim: 0,
+    radius: 28
+  });
+}
+
+// ── Particles ────────────────────────────────────────────────────
+function spawnParticles(x, y, color) {
+  for (let i = 0; i < 14; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let speed = 1.5 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 1,
+      life: 40 + Math.random() * 30,
+      maxLife: 60,
+      color,
+      size: 3 + Math.random() * 4
+    });
+  }
+}
+
+// ── Float text ───────────────────────────────────────────────────
+function spawnFloatText(x, y, text, color) {
+  floatTexts.push({ x, y, text, color, life: 70, maxLife: 70, vy: -1.5 });
+}
+
+// ── Combo + streak HUD ───────────────────────────────────────────
+function addCombo() {
+  combo = Math.min(combo + 0.5, 5);
+  comboTimer = 180;
+  document.getElementById('combo-display').textContent = 'x' + combo.toFixed(1);
+}
+
+function tickCombo() {
+  if (comboTimer > 0) {
+    comboTimer--;
+  } else {
+    if (combo > 1) {
+      combo = Math.max(1, combo - 0.01);
+      document.getElementById('combo-display').textContent = 'x' + combo.toFixed(1);
+    }
+  }
+}
+
+function updateStreakHUD() {
+  const el = document.getElementById('combo-display');
+  // Colour-code combo by intensity
+  if (combo >= 4)      { el.style.color = '#ff4400'; el.style.textShadow = '0 0 8px #ff4400'; }
+  else if (combo >= 3) { el.style.color = '#ff8800'; el.style.textShadow = '0 0 6px #ff8800'; }
+  else if (combo >= 2) { el.style.color = '#ffd700'; el.style.textShadow = '0 0 4px #ffd700'; }
+  else                 { el.style.color = '#f9e04b'; el.style.textShadow = ''; }
+  // Streak badge
+  const streakEl = document.getElementById('streak-display');
+  if (streakEl) {
+    streakEl.textContent = streak >= 5 ? `🔥${streak}` : streak > 0 ? `${streak}` : '0';
+    streakEl.style.color = streak >= 10 ? '#ff4400' : streak >= 5 ? '#ff9900' : '#f9e04b';
+  }
+}
+
+// ── Click handler ────────────────────────────────────────────────
+function handleInput(clientX, clientY) {
+  if (gameState !== 'playing') return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (clientX - rect.left) * (W / rect.width);
+  const my = (clientY - rect.top) * (H / rect.height);
+
+  // Check rubbish first (drawn on top conceptually, same pass)
+  for (let i = rubbish.length - 1; i >= 0; i--) {
+    const rb = rubbish[i];
+    if (rb.clicked) continue;
+    const bob = Math.sin(rb.bobPhase) * rb.bobAmp;
+    const dy = my - (rb.y + bob);
+    const dx = mx - rb.x;
+    if (Math.sqrt(dx*dx + dy*dy) < rb.radius * rb.scale) {
+      rb.clicked = true;
+      rb.clickAnim = 1;
+      // Add time bonus
+      timeLeft += rb.def.timeBonus;
+      document.getElementById('timer-display').textContent = timeLeft;
+      spawnParticles(rb.x, rb.y + bob, '#90ee90');
+      spawnFloatText(rb.x, rb.y + bob - 20, '+1s ⏱', '#90ee90');
+      return; // consumed this click
+    }
+  }
+
+  // Check creatures in reverse (topmost first)
+  for (let i = creatures.length - 1; i >= 0; i--) {
+    const c = creatures[i];
+    if (c.clicked) continue;
+    const bob = Math.sin(c.bobPhase) * c.bobAmp;
+    const dy = my - (c.y + bob);
+    const dx = mx - c.x;
+    if (Math.sqrt(dx*dx + dy*dy) < c.radius * c.scale) {
+      c.clicked = true;
+      c.clickAnim = 1;
+
+      if (c.isDecoy) {
+        // Hit a decoy — penalty!
+        streak = 0;
+        combo = Math.max(1, combo - 1);
+        score = Math.max(0, score - 1);
+        screenShake = 8;
+        document.getElementById('score-display').textContent = score;
+        document.getElementById('combo-display').textContent = 'x' + combo.toFixed(1);
+        spawnParticles(c.x, c.y + bob, '#ff4444');
+        spawnFloatText(c.x, c.y + bob - 20, '⚠️ Decoy! -1', '#ff6666');
+        updateStreakHUD();
+      } else {
+        const basePts = c.def.points;
+        const bonusPts = Math.round(basePts * (combo - 1));
+        const totalPts = basePts + bonusPts;
+        score += totalPts;
+        streak++;
+        addCombo();
+        // Milestone streak excitement
+        if (streak === 5)  { screenShake = 6; spawnFloatText(c.x, c.y - 40, '🔥 5 STREAK!', '#ff9900'); }
+        if (streak === 10) { screenShake = 10; spawnFloatText(c.x, c.y - 40, '🔥🔥 10 STREAK!!', '#ff4400'); }
+        if (streak === 15) { screenShake = 14; spawnFloatText(c.x, c.y - 40, '💥 UNSTOPPABLE!!!', '#f9e04b'); }
+        document.getElementById('score-display').textContent = score;
+        spawnParticles(c.x, c.y + bob, c.def.zone === 'water' ? '#7df' : '#ffd');
+        const label = c.def.label === 'Pelican'
+          ? `★ +${basePts}${bonusPts > 0 ? ' +'+bonusPts+'✨' : ''}!`
+          : `+${basePts}${bonusPts > 0 ? ' +'+bonusPts+'✨' : ''}`;
+        spawnFloatText(c.x, c.y + bob - 20, label, c.def.points >= 5 ? '#f9e04b' : '#fff');
+        updateStreakHUD();
+      }
+      break;
+    }
+  }
+}
+
+canvas.addEventListener('click', e => handleInput(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  handleInput(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+
+// ── Main game loop ───────────────────────────────────────────────
+let frame = 0;
+function gameLoop() {
+  if (gameState !== 'playing') return;
+  try {
+  frame++;
+
+  ctx.clearRect(0, 0, W, H);
+  drawScene();
+
+  // ── Difficulty level (based on time elapsed into the 30s game) ──
+  const elapsed = 30 - timeLeft;
+  diffLevel = elapsed < 8 ? 0 : elapsed < 16 ? 1 : elapsed < 22 ? 2 : 3;
+  // Speed multipliers per level: bobs faster, life shorter, more spawns
+  const speedMul   = [1.0, 1.3, 1.7, 2.2][diffLevel];
+  const lifeMul    = [1.0, 0.8, 0.6, 0.45][diffLevel];
+  const spawnBase  = [120, 90,  65,  45][diffLevel];
+  const maxOnScreen = [3, 4, 5, 7][diffLevel];
+
+  // Spawn creatures
+  spawnTimer++;
+  if (spawnTimer >= spawnBase && creatures.filter(c => !c.clicked).length < maxOnScreen) {
+    spawnTimer = 0;
+    // At higher difficulty occasionally spawn a decoy (random ibis shape but no points)
+    const useDecoy = diffLevel >= 2 && Math.random() < 0.25;
+    spawnCreature(useDecoy, speedMul, lifeMul);
+    if (diffLevel >= 3 && Math.random() < 0.4) spawnCreature(false, speedMul, lifeMul);
+  }
+
+  // Spawn rubbish periodically
+  rubbishTimer++;
+  if (rubbishTimer >= RUBBISH_INTERVAL) {
+    rubbishTimer = 0;
+    spawnRubbish();
+    RUBBISH_INTERVAL = Math.max(180, RUBBISH_INTERVAL - 5);
+  }
+
+  // ── Screen shake ─────────────────────────────────────────────────
+  let shaking = false;
+  if (screenShake > 0) {
+    screenShake--;
+    shaking = true;
+    const mag = (screenShake + 1) * 0.5;
+    ctx.save();
+    ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+  }
+
+  // Update + draw creatures
+  creatures = creatures.filter(c => {
+    c.bobPhase += c.bobSpeed * speedMul;
+
+    // Near-miss: creature darts away when life is low and not yet clicked
+    if (!c.clicked && !c.fadingIn && c.life < 55 && !c.darting) {
+      if (Math.random() < 0.03) {   // ~3% chance per frame when low on life
+        c.darting = true;
+        c.dartVx = (Math.random() - 0.5) * 6;
+        c.dartVy = (Math.random() - 0.3) * -5; // mostly upward / sideways
+      }
+    }
+    if (c.darting) {
+      c.x += c.dartVx;
+      c.y += c.dartVy;
+      c.dartVy += 0.4;   // gravity pull back
+      c.alpha -= 0.04;   // fade while darting
+    }
+
+    const bob = Math.sin(c.bobPhase) * c.bobAmp;
+
+    if (c.fadingIn) {
+      c.alpha = Math.min(1, c.alpha + 0.04);
+      if (c.alpha >= 1) c.fadingIn = false;
+    } else if (c.clicked) {
+      c.alpha -= 0.06;
+      c.clickAnim -= 0.05;
+    } else if (!c.darting) {
+      c.life--;
+      if (c.life < 40) c.alpha = c.life / 40;
+    }
+
+    if (c.alpha <= 0) return false;
+    if (c.x < -100 || c.x > W + 100) return false;  // off-screen after dart
+
+    const sc = c.scale * (c.clicked ? (1 + (1 - c.clickAnim) * 0.4) : 1);
+    c.def.draw(c.x, c.y + bob, sc, c.alpha);
+
+    // Label — decoys show a fake name
+    if (!c.clicked && c.life > 50) {
+      ctx.save();
+      ctx.globalAlpha = c.alpha * 0.7;
+      // Decoy gets a red-tinged label to be subtly different
+      ctx.fillStyle = c.isDecoy ? '#ff9999' : '#fff';
+      ctx.font = `bold ${Math.round(12 * c.scale)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText(c.isDecoy ? '???' : c.def.label, c.x, c.y + bob - 28 * c.scale);
+      ctx.restore();
+    }
+
+    return true;
+  });
+
+  if (shaking) ctx.restore();
+
+  // Update + draw rubbish
+  rubbish = rubbish.filter(rb => {
+    rb.bobPhase += rb.bobSpeed;
+    const bob = Math.sin(rb.bobPhase) * rb.bobAmp;
+
+    if (rb.fadingIn) {
+      rb.alpha = Math.min(1, rb.alpha + 0.03);
+      if (rb.alpha >= 1) rb.fadingIn = false;
+    } else if (rb.clicked) {
+      rb.alpha -= 0.07;
+    } else {
+      rb.life--;
+      if (rb.life < 40) rb.alpha = rb.life / 40;
+    }
+
+    if (rb.alpha <= 0) return false;
+
+    const sc = rb.scale * (rb.clicked ? (1 + (1 - rb.clickAnim) * 0.3) : 1);
+    rb.def.draw(rb.x, rb.y + bob, sc, rb.alpha);
+
+    // Label: always show "+1s" above rubbish
+    if (!rb.clicked) {
+      ctx.save();
+      ctx.globalAlpha = rb.alpha * 0.85;
+      ctx.fillStyle = '#90ee90';
+      ctx.font = `bold ${Math.round(11 * rb.scale)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText('+1s ⏱', rb.x, rb.y + bob - 30 * rb.scale);
+      ctx.restore();
+    }
+
+    if (rb.clicked) rb.clickAnim -= 0.06;
+
+    return true;
+  });
+
+  // Update + draw particles
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12;
+    p.life--;
+    if (p.life <= 0) return false;
+    const a = p.life / p.maxLife;
+    const r = p.size * a;
+    if (r < 0.1) return false;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  });
+
+  // Update + draw float texts
+  floatTexts = floatTexts.filter(ft => {
+    ft.y += ft.vy;
+    ft.life--;
+    const a = ft.life / ft.maxLife;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 6;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+    return ft.life > 0;
+  });
+
+  tickCombo();
+  } catch(e) { console.warn('gameLoop error:', e); }
+  requestAnimationFrame(gameLoop);
+}
+
+// ── Timer ────────────────────────────────────────────────────────
+function startTimer() {
+  timeLeft = 30;
+  document.getElementById('timer-display').textContent = timeLeft;
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer-display').textContent = timeLeft;
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      endGame();
+    }
+  }, 1000);
+}
+
+// ── Game flow ────────────────────────────────────────────────────
+function startGame() {
+  score = 0;
+  combo = 1;
+  comboTimer = 0;
+  streak = 0;
+  screenShake = 0;
+  diffLevel = 0;
+  creatures = [];
+  rubbish = [];
+  particles = [];
+  floatTexts = [];
+  frame = 0;
+  spawnTimer = 0;
+  SPAWN_INTERVAL = 120;
+  rubbishTimer = 0;
+  RUBBISH_INTERVAL = 300;
+  document.getElementById('score-display').textContent = '0';
+  document.getElementById('combo-display').textContent = 'x1';
+  document.getElementById('combo-display').style.color = '#f9e04b';
+  document.getElementById('combo-display').style.textShadow = '';
+  if (document.getElementById('streak-display')) document.getElementById('streak-display').textContent = '0';
+  document.getElementById('message-box').style.display = 'none';
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  gameState = 'playing';
+  buildTrees();
+  startTimer();
+  requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  gameState = 'over';
+  document.getElementById('msg-title').textContent = "Time's up! 🦘";
+  document.getElementById('msg-body').innerHTML =
+    `You scored <strong style="color:#f9e04b;font-size:1.4rem">${score}</strong> points!<br><br>` +
+    getRating(score);
+  document.getElementById('restart-btn').textContent = 'Play Again';
+  document.getElementById('message-box').style.display = 'block';
+  // Keep drawing the scene
+  (function finalDraw() {
+    ctx.clearRect(0,0,W,H);
+    drawScene();
+    if (gameState === 'over') requestAnimationFrame(finalDraw);
+  })();
+}
+
+function getMilestone(s) {
+  if (s >= 100) return { title: '🎉 Festie Bestie!',     msg: 'You\'re the ultimate river legend!' };
+  if (s >= 50)  return { title: '🦅 Estuary Expert!',    msg: 'Sharp eyes — you know this river.' };
+  if (s >= 25)  return { title: '🌊 Muddy Spotter!',     msg: 'Getting the hang of it!' };
+  return              { title: '🪱 River Rookie',        msg: 'Keep practising — the pelican is out there!' };
+}
+
+function getRating(s) {
+  const m = getMilestone(s);
+  return `<span style="font-size:1.1rem;color:#f9e04b">${m.title}</span><br><span style="font-size:0.85rem;color:#cde">${m.msg}</span>`;
+}
+
+// ── Initial idle scene ───────────────────────────────────────────
+buildTrees();
+(function idleDraw() {
+  ctx.clearRect(0,0,W,H);
+  drawScene();
+  if (gameState === 'idle') requestAnimationFrame(idleDraw);
+})();
+document.getElementById('message-box').style.display = 'block';
+document.getElementById('msg-title').textContent = 'Muddy River Festival';
+document.getElementById('msg-body').innerHTML =
+  'Spot the wildlife before they disappear!<br>♻️ Pick up rubbish for +1s<br>⚠️ Avoid decoys or lose a point!<br><span style="color:#f9e04b">★ Pelican = 5 pts (rare!)</span><br><br>' +
+  '<span style="font-size:0.75rem;color:#aac">0–24 River Rookie · 25–49 Muddy Spotter<br>50–99 Estuary Expert · 100+ Festie Bestie!</span><br><br>' +
+  '<a href="https://www.muddyriverfestival.com" target="_blank" rel="noopener" style="color:#ffd331;font-size:0.85rem;text-decoration:none;">www.muddyriverfestival.com</a>';
+document.getElementById('restart-btn').textContent = 'Start Game';
+document.getElementById('restart-btn').onclick = startGame;
+</script>
+</body>
+</html>
